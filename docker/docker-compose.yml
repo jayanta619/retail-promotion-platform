@@ -1,0 +1,257 @@
+version: '3.8'
+
+services:
+  # ---------- INFRASTRUCTURE ----------
+  postgres:
+    image: postgres:16-alpine
+    container_name: retail-postgres
+    environment:
+      POSTGRES_USER: retail_admin
+      POSTGRES_PASSWORD: retail_pass
+      POSTGRES_MULTIPLE_DATABASES: security_db,promotion_command_db,product_db,inventory_db,pricing_db,order_db,notification_db,audit_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - retail-network
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.0
+    container_name: retail-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+    networks:
+      - retail-network
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    container_name: retail-kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    networks:
+      - retail-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: retail-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - retail-network
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
+    container_name: retail-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    networks:
+      - retail-network
+
+  minio:
+    image: minio/minio:latest
+    container_name: retail-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: retail_admin
+      MINIO_ROOT_PASSWORD: retail_pass_minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+    networks:
+      - retail-network
+
+  # ---------- OBSERVABILITY ----------
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: retail-prometheus
+    volumes:
+      - ../docker/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    networks:
+      - retail-network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: retail-grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - retail-network
+
+  zipkin:
+    image: openzipkin/zipkin:latest
+    container_name: retail-zipkin
+    ports:
+      - "9411:9411"
+    networks:
+      - retail-network
+
+  # ---------- PLATFORM SERVICES ----------
+  discovery-server:
+    build: ../services/discovery-server
+    container_name: discovery-server
+    ports:
+      - "8761:8761"
+    networks:
+      - retail-network
+
+  config-server:
+    build: ../services/config-server
+    container_name: config-server
+    ports:
+      - "8888:8888"
+    depends_on:
+      - discovery-server
+    networks:
+      - retail-network
+
+  api-gateway:
+    build: ../services/api-gateway
+    container_name: api-gateway
+    ports:
+      - "8080:8080"
+    depends_on:
+      - discovery-server
+      - config-server
+    networks:
+      - retail-network
+
+  security-service:
+    build: ../services/security-service
+    container_name: security-service
+    ports:
+      - "8081:8081"
+    depends_on:
+      - postgres
+      - discovery-server
+    networks:
+      - retail-network
+
+  promotion-command-service:
+    build: ../services/promotion-command-service
+    container_name: promotion-command-service
+    ports:
+      - "8082:8082"
+    depends_on:
+      - postgres
+      - kafka
+      - discovery-server
+    networks:
+      - retail-network
+
+  promotion-query-service:
+    build: ../services/promotion-query-service
+    container_name: promotion-query-service
+    ports:
+      - "8083:8083"
+    depends_on:
+      - elasticsearch
+      - redis
+      - kafka
+      - discovery-server
+    networks:
+      - retail-network
+
+  product-service:
+    build: ../services/product-service
+    container_name: product-service
+    ports:
+      - "8084:8084"
+    depends_on:
+      - postgres
+      - discovery-server
+    networks:
+      - retail-network
+
+  inventory-service:
+    build: ../services/inventory-service
+    container_name: inventory-service
+    ports:
+      - "8085:8085"
+    depends_on:
+      - postgres
+      - discovery-server
+    networks:
+      - retail-network
+
+  pricing-service:
+    build: ../services/pricing-service
+    container_name: pricing-service
+    ports:
+      - "8086:8086"
+    depends_on:
+      - postgres
+      - discovery-server
+    networks:
+      - retail-network
+
+  order-service:
+    build: ../services/order-service
+    container_name: order-service
+    ports:
+      - "8087:8087"
+    depends_on:
+      - postgres
+      - discovery-server
+    networks:
+      - retail-network
+
+  notification-service:
+    build: ../services/notification-service
+    container_name: notification-service
+    ports:
+      - "8088:8088"
+    depends_on:
+      - postgres
+      - kafka
+      - discovery-server
+    networks:
+      - retail-network
+
+  audit-service:
+    build: ../services/audit-service
+    container_name: audit-service
+    ports:
+      - "8089:8089"
+    depends_on:
+      - postgres
+      - discovery-server
+    networks:
+      - retail-network
+
+  admin-service:
+    build: ../services/admin-service
+    container_name: admin-service
+    ports:
+      - "8090:8090"
+    depends_on:
+      - discovery-server
+    networks:
+      - retail-network
+
+networks:
+  retail-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  minio-data:

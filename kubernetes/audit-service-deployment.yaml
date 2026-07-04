@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: audit-service
+  namespace: retail-promotion-platform
+  labels:
+    app: audit-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: audit-service
+  template:
+    metadata:
+      labels:
+        app: audit-service
+    spec:
+      containers:
+        - name: audit-service
+          image: retailplatform/audit-service:latest
+          ports:
+            - containerPort: 8089
+          env:
+            - name: EUREKA_CLIENT_SERVICEURL_DEFAULTZONE
+              value: "http://discovery-server:8761/eureka/"
+            - name: SPRING_CONFIG_IMPORT
+              value: "optional:configserver:http://config-server:8888"
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "384Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8089
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8089
+            initialDelaySeconds: 45
+            periodSeconds: 15
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: audit-service
+  namespace: retail-promotion-platform
+spec:
+  selector:
+    app: audit-service
+  ports:
+    - port: 8089
+      targetPort: 8089
+  type: ClusterIP

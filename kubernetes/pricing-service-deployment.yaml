@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pricing-service
+  namespace: retail-promotion-platform
+  labels:
+    app: pricing-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: pricing-service
+  template:
+    metadata:
+      labels:
+        app: pricing-service
+    spec:
+      containers:
+        - name: pricing-service
+          image: retailplatform/pricing-service:latest
+          ports:
+            - containerPort: 8086
+          env:
+            - name: EUREKA_CLIENT_SERVICEURL_DEFAULTZONE
+              value: "http://discovery-server:8761/eureka/"
+            - name: SPRING_CONFIG_IMPORT
+              value: "optional:configserver:http://config-server:8888"
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "384Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8086
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8086
+            initialDelaySeconds: 45
+            periodSeconds: 15
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pricing-service
+  namespace: retail-promotion-platform
+spec:
+  selector:
+    app: pricing-service
+  ports:
+    - port: 8086
+      targetPort: 8086
+  type: ClusterIP

@@ -1,0 +1,23 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'api-gateway'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['api-gateway:8080']
+
+  - job_name: 'security-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['security-service:8081']
+
+  - job_name: 'promotion-command-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['promotion-command-service:8082']
+
+  - job_name: 'promotion-query-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['promotion-query-service:8083']
