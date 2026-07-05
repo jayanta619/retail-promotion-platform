@@ -14,7 +14,7 @@ spring:
   flyway:
     enabled: true
     baseline-on-migrate: true
-  kafka:
+  Kafka:
     bootstrap-servers: localhost:9092
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer

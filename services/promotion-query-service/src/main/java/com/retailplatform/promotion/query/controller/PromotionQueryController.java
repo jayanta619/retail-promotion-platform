@@ -16,15 +16,15 @@ public class PromotionQueryController {
     private final PromotionQueryService promotionQueryService;
 
     @GetMapping("/{id}")
-    public ApiResponse<PromotionDocument> getById(@PathVariable String id) {
+    public ApiResponse<PromotionDocument> getById(@PathVariable("id") String id) {
         return ApiResponse.ok(promotionQueryService.getPromotionById(id), null);
     }
 
     @GetMapping("/search")
     public ApiResponse<List<PromotionDocument>> search(
-            @RequestParam(required = false) String zoneCode,
-            @RequestParam(required = false) String status,
-            @RequestParam(required = false) String name) {
+            @RequestParam(value = "zoneCode", required = false) String zoneCode,
+            @RequestParam(value = "status", required = false) String status,
+            @RequestParam(value = "name", required = false) String name) {
 
         if (name != null) {
             return ApiResponse.ok(promotionQueryService.searchByName(name), null);

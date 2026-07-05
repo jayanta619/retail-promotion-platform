@@ -12,14 +12,16 @@ spring:
       port: 6379
   cache:
     type: redis
-  kafka:
+  Kafka:
     bootstrap-servers: localhost:9092
     consumer:
       group-id: promotion-query-service
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
-        spring.json.trusted.packages: "com.retailplatform.promotion.query.event"
+        spring.json.trusted.packages: "com.retailplatform.promotion.command.event,com.retailplatform.promotion.query.event"
+        spring.json.use.type.headers: false
+        spring.json.value.default.type: com.retailplatform.promotion.query.event.PromotionCreatedEvent
 
 eureka:
   client:
