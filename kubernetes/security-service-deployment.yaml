@@ -17,7 +17,8 @@ spec:
     spec:
       containers:
         - name: security-service
-          image: retailplatform/security-service:latest
+          image: docker-security-service:latest
+          imagePullPolicy: Never
           ports:
             - containerPort: 8081
           env:

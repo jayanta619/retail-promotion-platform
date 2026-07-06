@@ -17,7 +17,8 @@ spec:
     spec:
       containers:
         - name: promotion-command-service
-          image: retailplatform/promotion-command-service:latest
+          image: docker-promotion-command-service:latest
+          imagePullPolicy: Never
           ports:
             - containerPort: 8082
           env:

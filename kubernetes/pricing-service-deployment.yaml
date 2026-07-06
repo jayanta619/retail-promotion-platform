@@ -17,7 +17,8 @@ spec:
     spec:
       containers:
         - name: pricing-service
-          image: retailplatform/pricing-service:latest
+          image: docker-pricing-service:latest
+          imagePullPolicy: Never
           ports:
             - containerPort: 8086
           env:

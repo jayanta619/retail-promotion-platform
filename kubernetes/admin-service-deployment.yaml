@@ -17,7 +17,8 @@ spec:
     spec:
       containers:
         - name: admin-service
-          image: retailplatform/admin-service:latest
+          image: docker-admin-service:latest
+          imagePullPolicy: Never
           ports:
             - containerPort: 8090
           env:

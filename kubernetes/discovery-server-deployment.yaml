@@ -17,7 +17,8 @@ spec:
     spec:
       containers:
         - name: discovery-server
-          image: retailplatform/discovery-server:latest
+          image: docker-discovery-server:latest
+          imagePullPolicy: Never
           ports:
             - containerPort: 8761
           env:

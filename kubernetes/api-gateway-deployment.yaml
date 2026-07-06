@@ -6,7 +6,7 @@ metadata:
   labels:
     app: api-gateway
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: api-gateway
@@ -17,7 +17,8 @@ spec:
     spec:
       containers:
         - name: api-gateway
-          image: retailplatform/api-gateway:latest
+          image: docker-api-gateway:latest
+          imagePullPolicy: Never
           ports:
             - containerPort: 8080
           env:

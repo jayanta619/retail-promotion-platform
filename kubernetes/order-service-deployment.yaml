@@ -17,7 +17,8 @@ spec:
     spec:
       containers:
         - name: order-service
-          image: retailplatform/order-service:latest
+          image: docker-order-service:latest
+          imagePullPolicy: Never
           ports:
             - containerPort: 8087
           env:

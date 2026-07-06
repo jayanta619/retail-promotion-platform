@@ -17,7 +17,8 @@ spec:
     spec:
       containers:
         - name: config-server
-          image: retailplatform/config-server:latest
+          image: docker-audit-service:latest
+          imagePullPolicy: Never
           ports:
             - containerPort: 8888
           env:

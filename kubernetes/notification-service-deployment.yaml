@@ -17,7 +17,8 @@ spec:
     spec:
       containers:
         - name: notification-service
-          image: retailplatform/notification-service:latest
+          image: docker-notification-service:latest
+          imagePullPolicy: Never
           ports:
             - containerPort: 8088
           env:
