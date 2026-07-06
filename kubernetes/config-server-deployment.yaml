@@ -6,7 +6,7 @@ metadata:
   labels:
     app: config-server
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: config-server
@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: config-server
-          image: docker-audit-service:latest
+          image: docker-config-server:latest
           imagePullPolicy: Never
           ports:
             - containerPort: 8888
