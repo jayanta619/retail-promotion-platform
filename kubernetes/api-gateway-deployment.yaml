@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: api-gateway
-          image: docker-api-gateway:latest
+          image: retailplatformacr.azurecr.io/api-gateway:v1
           imagePullPolicy: Never
           ports:
             - containerPort: 8080

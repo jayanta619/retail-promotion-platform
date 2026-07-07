@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: inventory-service
-          image: docker-inventory-service:latest
+          image: retailplatformacr.azurecr.io/inventory-service:v1
           imagePullPolicy: Never
           ports:
             - containerPort: 8085

@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: product-service
-          image: docker-product-service:latest
+          image: retailplatformacr.azurecr.io/product-service:v1
           imagePullPolicy: Never
           ports:
             - containerPort: 8084

@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: security-service
-          image: docker-security-service:latest
+          image: retailplatformacr.azurecr.io/security-service:v1
           imagePullPolicy: Never
           ports:
             - containerPort: 8081

@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: config-server
-          image: docker-config-server:latest
+          image: retailplatformacr.azurecr.io/config-server:v1
           imagePullPolicy: Never
           ports:
             - containerPort: 8888

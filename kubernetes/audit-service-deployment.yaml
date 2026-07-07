@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: audit-service
-          image: docker-audit-service:latest
+          image: retailplatformacr.azurecr.io/audit-service:v1
           imagePullPolicy: Never
           ports:
             - containerPort: 8089
