@@ -18,7 +18,7 @@ spec:
       containers:
         - name: order-service
           image: retailplatformacr.azurecr.io/order-service:v1
-          imagePullPolicy: Never
+          imagePullPolicy: Always
           ports:
             - containerPort: 8087
           env:

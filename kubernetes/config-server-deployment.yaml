@@ -18,7 +18,7 @@ spec:
       containers:
         - name: config-server
           image: retailplatformacr.azurecr.io/config-server:v1
-          imagePullPolicy: Never
+          imagePullPolicy: Always
           ports:
             - containerPort: 8888
           env:

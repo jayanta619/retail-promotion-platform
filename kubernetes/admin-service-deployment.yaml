@@ -18,7 +18,7 @@ spec:
       containers:
         - name: admin-service
           image: retailplatformacr.azurecr.io/admin-service:v1
-          imagePullPolicy: Never
+          imagePullPolicy: Always
           ports:
             - containerPort: 8090
           env:

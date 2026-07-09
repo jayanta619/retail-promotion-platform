@@ -18,7 +18,7 @@ spec:
       containers:
         - name: audit-service
           image: retailplatformacr.azurecr.io/audit-service:v1
-          imagePullPolicy: Never
+          imagePullPolicy: Always
           ports:
             - containerPort: 8089
           env:

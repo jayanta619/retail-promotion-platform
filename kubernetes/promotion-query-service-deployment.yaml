@@ -18,7 +18,7 @@ spec:
       containers:
         - name: promotion-query-service
           image: retailplatformacr.azurecr.io/promotion-query-service:v1
-          imagePullPolicy: Never
+          imagePullPolicy: Always
           ports:
             - containerPort: 8083
           env:

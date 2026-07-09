@@ -5,7 +5,7 @@ spring:
   application:
     name: promotion-command-service
   datasource:
-    url: jdbc:postgresql://localhost:5432/promotion_command_db
+    url: jdbc:postgresql://postgres:5432/promotion_command_db
     username: retail_admin
     password: retail_pass
   jpa:

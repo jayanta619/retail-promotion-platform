@@ -18,7 +18,7 @@ spec:
       containers:
         - name: promotion-command-service
           image: retailplatformacr.azurecr.io/promotion-command-service:v1
-          imagePullPolicy: Never
+          imagePullPolicy: Always
           ports:
             - containerPort: 8082
           env:

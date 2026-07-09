@@ -18,7 +18,7 @@ spec:
       containers:
         - name: inventory-service
           image: retailplatformacr.azurecr.io/inventory-service:v1
-          imagePullPolicy: Never
+          imagePullPolicy: Always
           ports:
             - containerPort: 8085
           env:
