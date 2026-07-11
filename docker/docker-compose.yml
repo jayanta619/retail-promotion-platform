@@ -1,18 +1,18 @@
 version: '3.8'
 
 services:
-  # ---------- INFRASTRUCTURE ----------
   postgres:
     image: postgres:16-alpine
     container_name: retail-postgres
     environment:
       POSTGRES_USER: retail_admin
       POSTGRES_PASSWORD: retail_pass
-      POSTGRES_MULTIPLE_DATABASES: security_db,promotion_command_db,product_db,inventory_db,pricing_db,order_db,notification_db,audit_db
+      POSTGRES_MULTIPLE_DATABASES: security_db,promotion_command_db,promotion_query_db,product_db,inventory_db,pricing_db,order_db,notification_db,audit_db,admin_db
     ports:
       - "5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      - ./init-multiple-postgres-databases.sh:/docker-entrypoint-initdb.d/init-multiple-postgres-databases.sh
     networks:
       - retail-network
 
@@ -76,7 +76,6 @@ services:
     networks:
       - retail-network
 
-  # ---------- OBSERVABILITY ----------
   prometheus:
     image: prom/prometheus:latest
     container_name: retail-prometheus
@@ -89,7 +88,7 @@ services:
 
   grafana:
     image: grafana/grafana:latest
-    container_name: retail-grafana
+    container_name: retail-grafana.yaml
     ports:
       - "3000:3000"
     depends_on:
@@ -105,7 +104,6 @@ services:
     networks:
       - retail-network
 
-  # ---------- PLATFORM SERVICES ----------
   discovery-server:
     build: ../services/discovery-server
     container_name: discovery-server
@@ -119,6 +117,8 @@ services:
     container_name: config-server
     ports:
       - "8888:8888"
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
     depends_on:
       - discovery-server
     networks:
@@ -129,6 +129,10 @@ services:
     container_name: api-gateway
     ports:
       - "8080:8080"
+    environment:
+      SPRING_CONFIG_IMPORT: configserver:http://config-server:8888
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
+      SPRING_CLOUD_CONFIG_URI: http://config-server:8888
     depends_on:
       - discovery-server
       - config-server
@@ -140,9 +144,15 @@ services:
     container_name: security-service
     ports:
       - "8081:8081"
+    environment:
+      SPRING_CONFIG_IMPORT: configserver:http://config-server:8888
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
+      SPRING_CLOUD_CONFIG_URI: http://config-server:8888
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/security_db
     depends_on:
       - postgres
       - discovery-server
+      - config-server
     networks:
       - retail-network
 
@@ -151,10 +161,17 @@ services:
     container_name: promotion-command-service
     ports:
       - "8082:8082"
+    environment:
+      SPRING_CONFIG_IMPORT: configserver:http://config-server:8888
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
+      SPRING_CLOUD_CONFIG_URI: http://config-server:8888
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/promotion_command_db
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
     depends_on:
       - postgres
       - kafka
       - discovery-server
+      - config-server
     networks:
       - retail-network
 
@@ -163,11 +180,19 @@ services:
     container_name: promotion-query-service
     ports:
       - "8083:8083"
+    environment:
+      SPRING_CONFIG_IMPORT: configserver:http://config-server:8888
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
+      SPRING_CLOUD_CONFIG_URI: http://config-server:8888
+      SPRING_ELASTICSEARCH_URIS: http://elasticsearch:9200
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
     depends_on:
       - elasticsearch
       - redis
       - kafka
       - discovery-server
+      - config-server
     networks:
       - retail-network
 
@@ -176,9 +201,15 @@ services:
     container_name: product-service
     ports:
       - "8084:8084"
+    environment:
+      SPRING_CONFIG_IMPORT: configserver:http://config-server:8888
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
+      SPRING_CLOUD_CONFIG_URI: http://config-server:8888
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/product_db
     depends_on:
       - postgres
       - discovery-server
+      - config-server
     networks:
       - retail-network
 
@@ -187,9 +218,15 @@ services:
     container_name: inventory-service
     ports:
       - "8085:8085"
+    environment:
+      SPRING_CONFIG_IMPORT: configserver:http://config-server:8888
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
+      SPRING_CLOUD_CONFIG_URI: http://config-server:8888
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/inventory_db
     depends_on:
       - postgres
       - discovery-server
+      - config-server
     networks:
       - retail-network
 
@@ -198,9 +235,15 @@ services:
     container_name: pricing-service
     ports:
       - "8086:8086"
+    environment:
+      SPRING_CONFIG_IMPORT: configserver:http://config-server:8888
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
+      SPRING_CLOUD_CONFIG_URI: http://config-server:8888
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/pricing_db
     depends_on:
       - postgres
       - discovery-server
+      - config-server
     networks:
       - retail-network
 
@@ -209,9 +252,15 @@ services:
     container_name: order-service
     ports:
       - "8087:8087"
+    environment:
+      SPRING_CONFIG_IMPORT: configserver:http://config-server:8888
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
+      SPRING_CLOUD_CONFIG_URI: http://config-server:8888
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/order_db
     depends_on:
       - postgres
       - discovery-server
+      - config-server
     networks:
       - retail-network
 
@@ -220,10 +269,16 @@ services:
     container_name: notification-service
     ports:
       - "8088:8088"
+    environment:
+      SPRING_CONFIG_IMPORT: configserver:http://config-server:8888
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
+      SPRING_CLOUD_CONFIG_URI: http://config-server:8888
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/notification_db
     depends_on:
       - postgres
       - kafka
       - discovery-server
+      - config-server
     networks:
       - retail-network
 
@@ -232,9 +287,15 @@ services:
     container_name: audit-service
     ports:
       - "8089:8089"
+    environment:
+      SPRING_CONFIG_IMPORT: configserver:http://config-server:8888
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
+      SPRING_CLOUD_CONFIG_URI: http://config-server:8888
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/audit_db
     depends_on:
       - postgres
       - discovery-server
+      - config-server
     networks:
       - retail-network
 
@@ -243,8 +304,13 @@ services:
     container_name: admin-service
     ports:
       - "8090:8090"
+    environment:
+      SPRING_CONFIG_IMPORT: configserver:http://config-server:8888
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
+      SPRING_CLOUD_CONFIG_URI: http://config-server:8888
     depends_on:
       - discovery-server
+      - config-server
     networks:
       - retail-network
 

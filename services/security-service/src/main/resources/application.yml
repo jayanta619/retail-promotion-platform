@@ -5,7 +5,7 @@ spring:
   application:
     name: security-service
   datasource:
-    url: jdbc:postgresql://localhost:5432/security_db
+    url: jdbc:postgresql://postgres:5432/security_db
     username: retail_admin
     password: retail_pass
   jpa:
@@ -27,7 +27,7 @@ security:
 eureka:
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka/
+      defaultZone: http://discovery-server:8761/eureka/
   instance:
     prefer-ip-address: true
 
@@ -35,4 +35,16 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics,prometheus
+        include: health,info,prometheus,metrics,gateway
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    tags:
+      application: ${spring.application.name}
+  tracing:
+    sampling:
+      probability: 1.0
+  zipkin:
+    tracing:
+      endpoint: http://zipkin:9411/api/v2/spans

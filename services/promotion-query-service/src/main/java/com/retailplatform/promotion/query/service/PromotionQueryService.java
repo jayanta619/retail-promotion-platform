@@ -15,7 +15,7 @@ public class PromotionQueryService {
 
     private final PromotionSearchRepository searchRepository;
 
-    @Cacheable(value = "promotion", key = "#id")
+    @Cacheable(value = "promotion", key = "#p0")
     public PromotionDocument getPromotionById(String id) {
         return searchRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Promotion not found: " + id));
