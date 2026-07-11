@@ -88,7 +88,7 @@ services:
 
   grafana:
     image: grafana/grafana:latest
-    container_name: retail-grafana
+    container_name: retail-grafana.yaml
     ports:
       - "3000:3000"
     depends_on:
