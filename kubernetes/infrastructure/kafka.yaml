@@ -8,6 +8,8 @@ metadata:
 
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
 
   selector:
     matchLabels:
@@ -75,8 +77,8 @@ spec:
             tcpSocket:
               port: 9092
 
-            initialDelaySeconds: 40
-            periodSeconds: 10
+            initialDelaySeconds: 120
+            periodSeconds: 20
             timeoutSeconds: 5
             failureThreshold: 6
 
@@ -84,8 +86,8 @@ spec:
             tcpSocket:
               port: 9092
 
-            initialDelaySeconds: 60
-            periodSeconds: 20
+            initialDelaySeconds: 180
+            periodSeconds: 30
             timeoutSeconds: 5
             failureThreshold: 6
 
