@@ -24,19 +24,19 @@ function Invoke-AzTsv {
 }
 
 Write-Host "Checking Azure login..."
-$subscriptionId = Invoke-AzTsv account show --query id -o tsv
-$tenantId = Invoke-AzTsv account show --query tenantId -o tsv
+$subscriptionId = Invoke-AzTsv account show --query id --output tsv
+$tenantId = Invoke-AzTsv account show --query tenantId --output tsv
 
 Write-Host "Finding or creating Microsoft Entra application: $AppName"
-$appId = Invoke-AzTsv ad app list --display-name $AppName --query "[0].appId" -o tsv
+$appId = Invoke-AzTsv ad app list --display-name $AppName --query "[0].appId" --output tsv
 if ([string]::IsNullOrWhiteSpace($appId)) {
-    $appId = Invoke-AzTsv ad app create --display-name $AppName --query appId -o tsv
+    $appId = Invoke-AzTsv ad app create --display-name $AppName --query appId --output tsv
 }
-$appObjectId = Invoke-AzTsv ad app show --id $appId --query id -o tsv
+$appObjectId = Invoke-AzTsv ad app show --id $appId --query id --output tsv
 
-$servicePrincipalObjectId = Invoke-AzTsv ad sp list --filter "appId eq '$appId'" --query "[0].id" -o tsv
+$servicePrincipalObjectId = Invoke-AzTsv ad sp list --filter "appId eq '$appId'" --query "[0].id" --output tsv
 if ([string]::IsNullOrWhiteSpace($servicePrincipalObjectId)) {
-    $servicePrincipalObjectId = Invoke-AzTsv ad sp create --id $appId --query id -o tsv
+    $servicePrincipalObjectId = Invoke-AzTsv ad sp create --id $appId --query id --output tsv
 }
 
 function Ensure-FederatedCredential {
@@ -45,7 +45,7 @@ function Ensure-FederatedCredential {
         [string]$Subject
     )
 
-    $existing = Invoke-AzTsv ad app federated-credential list --id $appObjectId --query "[?name=='$Name'].name | [0]" -o tsv
+    $existing = Invoke-AzTsv ad app federated-credential list --id $appObjectId --query "[?name=='$Name'].name | [0]" --output tsv
     if (-not [string]::IsNullOrWhiteSpace($existing)) {
         Write-Host "Federated credential already exists: $Name"
         return
@@ -78,8 +78,8 @@ Ensure-FederatedCredential `
     -Name "github-aks-production" `
     -Subject "repo:$GitHubOwner/$GitHubRepo`:environment:$EnvironmentName"
 
-$acrId = Invoke-AzTsv acr show --name $AcrName --query id -o tsv
-$aksId = Invoke-AzTsv aks show --resource-group $ResourceGroup --name $AksName --query id -o tsv
+$acrId = Invoke-AzTsv acr show --name $AcrName --query id --output tsv
+$aksId = Invoke-AzTsv aks show --resource-group $ResourceGroup --name $AksName --query id --output tsv
 
 function Ensure-RoleAssignment {
     param(
@@ -91,7 +91,7 @@ function Ensure-RoleAssignment {
         --assignee-object-id $servicePrincipalObjectId `
         --scope $Scope `
         --query "[?roleDefinitionName=='$Role'].id | [0]" `
-        -o tsv
+        --output tsv
 
     if ([string]::IsNullOrWhiteSpace($existing)) {
         & az role assignment create `
