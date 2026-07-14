@@ -1,0 +1,250 @@
+name: Retail Platform CI/CD
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop, "feature/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+# Application services built and deployed by this workflow.
+# Stateful infrastructure (PostgreSQL, Kafka, Redis, Elasticsearch, Grafana, etc.)
+# is intentionally NOT redeployed on every Java commit.
+env:
+  JAVA_VERSION: "21"
+  AZURE_RESOURCE_GROUP: retail-rg
+  AKS_CLUSTER_NAME: retail-aks
+  ACR_NAME: retailplatformacr
+  ACR_LOGIN_SERVER: retailplatformacr.azurecr.io
+  K8S_NAMESPACE: retail-promotion-platform
+
+jobs:
+  verify:
+    name: Test, package and scan source
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+
+      - name: Report test coverage gap
+        shell: bash
+        run: |
+          set -euo pipefail
+          count=$(find . -path '*/src/test/*' -type f | wc -l)
+          echo "Test files found: ${count}"
+          if [ "${count}" -eq 0 ]; then
+            echo "::warning::No test files exist yet. Add tests and later make this check fail when count is zero."
+          fi
+
+      - name: Maven clean verify
+        run: mvn -B -ntp clean verify
+
+      - name: Ensure all service JARs were produced
+        shell: bash
+        run: |
+          set -euo pipefail
+          services=(
+            discovery-server config-server api-gateway security-service
+            promotion-command-service promotion-query-service product-service
+            inventory-service pricing-service order-service notification-service
+            audit-service admin-service
+          )
+          for service in "${services[@]}"; do
+            jar_count=$(find "services/${service}/target" -maxdepth 1 -name '*.jar' ! -name '*.original' | wc -l)
+            if [ "${jar_count}" -lt 1 ]; then
+              echo "No executable JAR found for ${service}" >&2
+              exit 1
+            fi
+          done
+
+      - name: Trivy repository scan
+        uses: aquasecurity/trivy-action@v0.35.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,secret,misconfig
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          format: table
+          # Keep warning-only while the currently committed secrets are being removed.
+          # Create repository variable SECURITY_GATE_ENFORCE=true to make findings fail CI.
+          exit-code: ${{ vars.SECURITY_GATE_ENFORCE == 'true' && '1' || '0' }}
+
+      - name: Archive service JARs
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar -czf service-jars.tgz services/*/target/*.jar
+
+      - name: Upload service JARs
+        uses: actions/upload-artifact@v7
+        with:
+          name: service-jars-${{ github.sha }}
+          path: service-jars.tgz
+          if-no-files-found: error
+          retention-days: 7
+
+  build-scan-push:
+    name: Build, scan and push ${{ matrix.service }}
+    needs: verify
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        service:
+          - discovery-server
+          - config-server
+          - api-gateway
+          - security-service
+          - promotion-command-service
+          - promotion-query-service
+          - product-service
+          - inventory-service
+          - pricing-service
+          - order-service
+          - notification-service
+          - audit-service
+          - admin-service
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Download packaged JARs
+        uses: actions/download-artifact@v8
+        with:
+          name: service-jars-${{ github.sha }}
+          path: .artifacts
+
+      - name: Extract packaged JARs
+        run: tar -xzf .artifacts/service-jars.tgz
+
+      - name: Azure login with OIDC
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Sign in to Azure Container Registry
+        run: az acr login --name "${ACR_NAME}"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build image locally for scanning
+        uses: docker/build-push-action@v6
+        with:
+          context: services/${{ matrix.service }}
+          load: true
+          push: false
+          tags: |
+            ${{ env.ACR_LOGIN_SERVER }}/${{ matrix.service }}:${{ github.sha }}
+            ${{ env.ACR_LOGIN_SERVER }}/${{ matrix.service }}:main
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+      - name: Trivy container image scan
+        uses: aquasecurity/trivy-action@v0.35.0
+        with:
+          image-ref: ${{ env.ACR_LOGIN_SERVER }}/${{ matrix.service }}:${{ github.sha }}
+          scanners: vuln,secret,misconfig
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          format: table
+          exit-code: ${{ vars.SECURITY_GATE_ENFORCE == 'true' && '1' || '0' }}
+
+      - name: Push immutable and branch tags to ACR
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker push "${ACR_LOGIN_SERVER}/${{ matrix.service }}:${GITHUB_SHA}"
+          docker push "${ACR_LOGIN_SERVER}/${{ matrix.service }}:main"
+
+  deploy:
+    name: Deploy immutable images to AKS
+    needs: build-scan-push
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: aks-production
+    concurrency:
+      group: retail-platform-aks-production
+      cancel-in-progress: false
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Azure login with OIDC
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Configure kubectl for AKS
+        uses: azure/aks-set-context@v5
+        with:
+          resource-group: ${{ env.AZURE_RESOURCE_GROUP }}
+          cluster-name: ${{ env.AKS_CLUSTER_NAME }}
+          # Starter mode for the cluster's current local-account authentication.
+          # Replace with namespace-scoped Entra/Kubernetes RBAC before production.
+          admin: "true"
+
+      - name: Confirm namespace exists
+        run: kubectl apply -f kubernetes/namespace.yaml
+
+      - name: Render manifests with immutable Git SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x scripts/ci/render-manifests.sh
+          scripts/ci/render-manifests.sh "${GITHUB_SHA}" "${ACR_LOGIN_SERVER}" rendered-manifests
+
+      - name: Show images that will be deployed
+        run: grep -R "image:" rendered-manifests
+
+      - name: Apply application manifests
+        run: kubectl apply -f rendered-manifests
+
+      - name: Wait for all application rollouts
+        shell: bash
+        run: |
+          set -euo pipefail
+          services=(
+            discovery-server config-server api-gateway security-service
+            promotion-command-service promotion-query-service product-service
+            inventory-service pricing-service order-service notification-service
+            audit-service admin-service
+          )
+          for service in "${services[@]}"; do
+            echo "Waiting for ${service}..."
+            kubectl rollout status "deployment/${service}" \
+              --namespace "${K8S_NAMESPACE}" \
+              --timeout=10m
+          done
+
+      - name: Deployment summary
+        if: always()
+        run: |
+          kubectl get deployments -n "${K8S_NAMESPACE}" -o wide
+          kubectl get pods -n "${K8S_NAMESPACE}" -o wide

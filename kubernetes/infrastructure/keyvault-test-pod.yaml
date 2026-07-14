@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: Pod
+
+metadata:
+  name: keyvault-test
+  namespace: retail-promotion-platform
+
+spec:
+  containers:
+    - name: busybox
+      image: busybox:1.36
+      command:
+        - /bin/sh
+        - -c
+        - sleep 3600
+
+      volumeMounts:
+        - name: secrets-store-inline
+          mountPath: /mnt/secrets-store
+          readOnly: true
+
+  volumes:
+    - name: secrets-store-inline
+      csi:
+        driver: secrets-store.csi.k8s.io
+        readOnly: true
+        volumeAttributes:
+          secretProviderClass: azure-keyvault
